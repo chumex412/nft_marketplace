@@ -19,4 +19,22 @@ pub mod nft_marketplace {
     pub fn initialize(ctx: Context<Initialize>, name: String, fee: u16) -> Result<()> {
         ctx.accounts.init(name, fee, ctx.bumps)
     }
+
+    pub fn list(ctx: Context<List>, price: u64) -> Result<()> {
+        ctx.accounts.listing(price, ctx.bumps)
+    }
+
+    pub fn buy(ctx: Context<Buy>) -> Result<()> {
+        ctx.accounts.send_sol()?;
+        ctx.accounts.receive_nft()?;
+        ctx.accounts.receive_rewards()
+    }
+
+    pub fn make_offer(ctx: Context<MakeOffer>, amount: u64) -> Result<()> {
+        ctx.accounts.make_offer(amount, ctx.bumps)
+    }
+
+    pub fn accept_offer(ctx: Context<BuyerOffer>) -> Result<()> {
+        ctx.accounts.accept_offer()
+    }
 }

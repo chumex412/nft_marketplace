@@ -4,7 +4,7 @@ use anchor_lang::{
 };
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token_interface::{Mint, TokenAccount, TokenInterface},
+    token_interface::{mint_to_checked, Mint, MintToChecked, TokenAccount, TokenInterface},
 };
 use mpl_core::{
     accounts::{BaseAssetV1, BaseCollectionV1},
@@ -92,8 +92,8 @@ impl<'info> Buy<'info> {
         let maker_amount = price.checked_sub(fee).ok_or(Errors::MathOverflow)?;
 
         let initial_accounts = Transfer {
-            to: self.taker.to_account_info(),
-            from: self.maker.to_account_info(),
+            from: self.taker.to_account_info(),
+            to: self.maker.to_account_info(),
         };
 
         let initial_cpi_context =
@@ -102,8 +102,8 @@ impl<'info> Buy<'info> {
         transfer(initial_cpi_context, maker_amount)?;
 
         let next_accounts = Transfer {
-            to: self.treasury.to_account_info(),
             from: self.taker.to_account_info(),
+            to: self.treasury.to_account_info(),
         };
 
         let next_cpi_context =
@@ -126,6 +126,32 @@ impl<'info> Buy<'info> {
             .new_owner(&self.taker.to_account_info())
             .system_program(Some(&self.system_program.to_account_info()))
             .invoke_signed(signer_seeds)?;
+
+        Ok(())
+    }
+
+    pub fn receive_rewards(&mut self) -> Result<()> {
+        let price = self.listing.price;
+
+        let signer_seeds: &[&[&[u8]]] = &[&[
+            MARKETPLACE,
+            self.marketplace.name.as_bytes(),
+            &[self.marketplace.bump],
+        ]];
+
+        mint_to_checked(
+            CpiContext::new_with_signer(
+                self.token_program.to_account_info(),
+                MintToChecked {
+                    mint: self.rewards_mint.to_account_info(),
+                    to: self.taker_reward_ata.to_account_info(),
+                    authority: self.marketplace.to_account_info(),
+                },
+                signer_seeds,
+            ),
+            price,
+            MINT_DECIMALS,
+        )?;
 
         Ok(())
     }
